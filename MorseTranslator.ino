@@ -1,55 +1,76 @@
-#define DEBUG true
-#define PAUSE_DEBUG true
+#define DEBUG true // displays aditional information during morse parsing
+#define PAUSE_DOT_DEBUG false // used to determine pause lengths, stops morse parsing
+#define PAUSE_GAP_DEBUG false // if PAUSE_DEBUG is true also debugs the lengths of pauses
 #define SENSOR_PIN A0
-#define INTERVAL 25
-#define MAX_ANALOG 1023
-#define THRESHOLD 500
+#define INTERVAL 15 // polling interval for . _ parsing, does not affect sensor reading frequency
+#define MAX_ANALOG 1023 // not really needed, always the same
+#define THRESHOLD 500 // volume threshold, most sounds are close to 0
 
-const String MORSE_TABLE[] = {
-  "._",
-  "_...",
-  "_._.",
-  "_..",
-  ".",
-  ".._.",
-  "__.",
-  "....",
-  "..",
-  ".___",
-  "_._",
-  "._..",
-  "__",
-  "_.",
-  "___",
-  ".__.",
-  "__._",
-  "._.",
-  "...",
-  "_",
-  ".._",
-  "..._",
-  ".__",
-  "_.._",
-  "_.__",
-  "__..",
-  "_____",
-  ".____",
-  "..___",
-  "...__",
-  "...._",
-  ".....",
-  "_....",
-  "__...",
-  "___..",
-  "____."
+const String MORSE_TABLE[55][2] = {
+  {"A", ".-"},  
+  {"B", "-..."},  
+  {"C", "-.-."},  
+  {"D", "-.."}, 
+  {"E", "."}, 
+  {"F", "..-."},  
+  {"G", "--."}, 
+  {"H", "...."},  
+  {"I", ".."},  
+  {"J", ".---"},  
+  {"K", "-.-"}, 
+  {"L", ".-.."},  
+  {"M", "--"},    
+  {"N", "-."},  
+  {"O", "---"}, 
+  {"P", ".--."},  
+  {"Q", "--.-"},  
+  {"R", ".-."}, 
+  {"S", "..."}, 
+  {"T", "-"}, 
+  {"U", "..-"}, 
+  {"V", "...-"},  
+  {"W", ".--"}, 
+  {"X", "-..-"},  
+  {"Y", "-.--"},  
+  {"Z", "--.."},  
+  {"0", "-----"}, 
+  {"1", ".----"}, 
+  {"2", "..---"}, 
+  {"3", "...--"}, 
+  {"4", "....-"}, 
+  {"5", "....."}, 
+  {"6", "-...."}, 
+  {"7", "--..."}, 
+  {"8", "---.."}, 
+  {"9", "----."}, 
+  {"Ä", ".-.-"},  
+  {"Á", ".--.-"}, 
+  {"Å", ".--.-"}, 
+  {"Ch",  "----"},  
+  {"É", "..-.."}, 
+  {"Ñ", "--.--"}, 
+  {"Ö", "---."},  
+  {"Ü", "..--"},  
+  {".", ".-.-.-"},  
+  {",", "--..--"},  
+  {":", "---..."},  
+  {"?", "..--.."},  
+  {"'", ".----."},  
+  {"-", "-....-"},  
+  {"\\", "-..-."}, 
+  {"(", "-.--.-"},  
+  {"\"", ".-..-."},  
+  {"@", ".--.-."},  
+  {"=", "-...-"}, 
 };
-const int MORSE_TABLE_SIZE = 35;
+const int MORSE_TABLE_SIZE = 55;
 
-const int LETTER_PAUSE = 250 / INTERVAL;
-const int WORD_PAUSE = 1500 / INTERVAL;
-const int SENTENCE_PAUSE = 7500 / INTERVAL;
-const int DOT_LENGTH = 175 / INTERVAL;
-const int DOT_THRESHOLD = 25 / INTERVAL;
+// all lengths are in miliseconds
+const int LETTER_PAUSE = 250 / INTERVAL; // gap after letter
+const int WORD_PAUSE = 1500 / INTERVAL; // gap after work
+const int SENTENCE_PAUSE = 7500 / INTERVAL; // gap after pause
+const int DOT_LENGTH = 175 / INTERVAL; // length in between . and _
+const int DOT_THRESHOLD = 25 / INTERVAL; // minimal length
 const int BUF_LENGTH = 6;
 
 
@@ -79,7 +100,7 @@ void loop() {
     if(bufLength > BUF_LENGTH) {
       bufLength = 0;
     }
-    if(PAUSE_DEBUG) {
+    if(PAUSE_DOT_DEBUG || PAUSE_GAP_DEBUG) {
       pauseDebug();
     }
     else {
@@ -90,28 +111,30 @@ void loop() {
   }
 }
 
-char translateMorse() {
+String translateMorse() {
+  if(DEBUG) Serial.print('*');
   String w = "";
   for(int i = 0; i < bufLength; i++) {
-    w += String(buf[i] ? '.' : '_');
+    w += buf[i] ? "." : "-";
   }
 
-  if(DEBUG) Serial.print("(" + w + ")");
+  if(DEBUG) Serial.print("(" + w + ")");    
+
 
   for(int i = 0; i < MORSE_TABLE_SIZE; i++) {
-    if(w == MORSE_TABLE[i]) {
-      return i + (i < 27 ? 65 : 48);      
+    if(w == MORSE_TABLE[i][1]) {
+      return MORSE_TABLE[i][0];      
     }
   }
-  return DEBUG ? '?' : '_';
+  return DEBUG ? "?" : "_";
 }
 
 void pauseDebug() {
-  if(!isOn && wasOn && onCounter > 0) {     
-    Serial.println(onCounter);
+  if(PAUSE_DOT_DEBUG && !isOn && wasOn && onCounter > 0) {     
+    Serial.println(onCounter * INTERVAL);
   }
-  if(isOn && !wasOn && offCounter > 0) {
-    Serial.println(-1 * offCounter);
+  if(PAUSE_GAP_DEBUG && isOn && !wasOn && offCounter > 0) {
+    Serial.println(-1 * offCounter  * INTERVAL);
   }
 }
 
@@ -149,4 +172,6 @@ void writeMorse() {
     lastSpace = true;
   }
 }
+
+
 
