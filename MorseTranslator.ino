@@ -1,8 +1,9 @@
-const int SENSOR_PIN = A0;
-const long INTERVAL = 25;
-const int MAX_ANALOG = 1023;
-
-const int THRESHOLD = 500;
+#define DEBUG true
+#define PAUSE_DEBUG true
+#define SENSOR_PIN A0
+#define INTERVAL 25
+#define MAX_ANALOG 1023
+#define THRESHOLD 500
 
 const String MORSE_TABLE[] = {
   "._",
@@ -44,9 +45,11 @@ const String MORSE_TABLE[] = {
 };
 const int MORSE_TABLE_SIZE = 35;
 
-const int LETTER_PAUSE = 10;
-const int WORD_PAUSE = 60;
-const int DOT_LENGTH = 8;
+const int LETTER_PAUSE = 250 / INTERVAL;
+const int WORD_PAUSE = 1500 / INTERVAL;
+const int SENTENCE_PAUSE = 7500 / INTERVAL;
+const int DOT_LENGTH = 175 / INTERVAL;
+const int DOT_THRESHOLD = 25 / INTERVAL;
 const int BUF_LENGTH = 6;
 
 
@@ -76,34 +79,14 @@ void loop() {
     if(bufLength > BUF_LENGTH) {
       bufLength = 0;
     }
-    if(!isOn && wasOn && onCounter > 0) {
-      buf[bufLength++] = onCounter < DOT_LENGTH;// ? '.' : '_';
-    }
-    if(isOn && !wasOn && offCounter > 0) {              
-      if(offCounter > LETTER_PAUSE) {
-        Serial.print(translateMorse());
-        lastSpace = false;
-        bufLength = 0;
-      }
-      if(offCounter > WORD_PAUSE && !lastSpace) {
-        Serial.print(' ');
-        lastSpace = true;
-      }
-    }
-
-    if(isOn) {
-      if(wasOn) {
-        onCounter++;
-      }
-      wasOn = true;
-      offCounter = 0;
+    if(PAUSE_DEBUG) {
+      pauseDebug();
     }
     else {
-      offCounter++;
-      onCounter = 0;
-      wasOn = false;
-    }     
-    isOn = false;
+      writeMorse();         
+    }
+
+    storeOnOff();
   }
 }
 
@@ -113,14 +96,57 @@ char translateMorse() {
     w += String(buf[i] ? '.' : '_');
   }
 
-  
-  Serial.print("(" + w + ")");
+  if(DEBUG) Serial.print("(" + w + ")");
 
   for(int i = 0; i < MORSE_TABLE_SIZE; i++) {
     if(w == MORSE_TABLE[i]) {
       return i + (i < 27 ? 65 : 48);      
     }
   }
-  return '_';
+  return DEBUG ? '?' : '_';
+}
+
+void pauseDebug() {
+  if(!isOn && wasOn && onCounter > 0) {     
+    Serial.println(onCounter);
+  }
+  if(isOn && !wasOn && offCounter > 0) {
+    Serial.println(-1 * offCounter);
+  }
+}
+
+void storeOnOff() {
+  if(isOn) {
+    if(wasOn) {
+      onCounter++;
+    }
+    wasOn = true;
+    offCounter = 0;
+  }
+  else {
+    offCounter++;
+    onCounter = 0;
+    wasOn = false;
+  }     
+  isOn = false;
+}
+
+void writeMorse() {  
+  if(!isOn && wasOn && onCounter > DOT_THRESHOLD) {
+    buf[bufLength++] = onCounter < DOT_LENGTH;// ? '.' : '_';
+  }
+  if(offCounter > LETTER_PAUSE && bufLength > 0) {
+    Serial.print(translateMorse());
+    lastSpace = false;
+    bufLength = 0;
+  }
+  if(offCounter > SENTENCE_PAUSE && !lastSpace) {
+    Serial.println();
+    lastSpace = true;
+  }
+  if(offCounter > WORD_PAUSE && !lastSpace) {
+    Serial.print(DEBUG ? '_' : ' ');
+    lastSpace = true;
+  }
 }
 
